@@ -79,7 +79,7 @@ optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum
 optimizer = SGD_GL(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 # SGD + GCP
 optimizer = SGD_GCP(cnn.parameters(), lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay,
-                        ratio=1 - args.prune, numgroup=args.groups)
+                        ratio=args.comp, numgroup=args.groups)
 
 ...
 
