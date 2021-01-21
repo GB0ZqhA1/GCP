@@ -7,7 +7,7 @@
 - tqdm
 
 ## How To Prune
-We use three-stage operations, (1) pretraining, (2) retraining+regularizing, (3) pruning+fine-tuning
+Three-stage operations: (1) pretraining, (2) retraining+regularizing, (3) pruning+fine-tuning
 
 **Pretraining**
 
