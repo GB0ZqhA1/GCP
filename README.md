@@ -6,7 +6,7 @@
 - TorchVision 0.2.0
 - tqdm
 
-## How To Prune
+## Usage of CIFAR-10 
 Three-stage operations: (1) pretraining, (2) retraining+regularizing, (3) pruning+fine-tuning
 
 **Pretraining**
@@ -61,4 +61,28 @@ python cifar_prune.py -l 56 -g 16 -p 0.6 [--save-dir ./cifarmodel] [--workers 4]
 
 # prune 60% channels in ResNet110 with 16 groups
 python cifar_prune.py -l 110 -g 16 -p 0.6 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+```
+
+
+## Usage of ImageNet 
+
+Import gcp.py and replace SGD optimizer in training code.
+
+```
+import gcp
+...
+# SGD optimizier
+optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+# SGD with group lasso optimizier
+optimizer = SGD_GL(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+# SGD + GCP
+optimizer = SGD_GCP(cnn.parameters(), lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay,
+                        ratio=1 - args.prune, numgroup=args.groups)
+...
+# In retraining, add a group lasso term to loss
+loss = criterion(outputs, labels) + optimizer.reg(reg)
+
+...
+
+
 ```
