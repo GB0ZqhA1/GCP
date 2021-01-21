@@ -90,18 +90,20 @@ class SGD_GCP(Optimizer):
                     chnorm = p.data.view(o, i, -1).pow(2).sum(dim=2)
                     ngroup = min(i, self.numgroup)
 
+                    # K-means cluster
                     kmeans = KMeans(n_clusters=ngroup, init="random", n_init=8192).fit(p.data.view(o,-1).abs().cpu().numpy())
                     groups = [[] for _ in range(self.numgroup)]
                     for och, chgr in enumerate(kmeans.labels_):
                         groups[chgr].append(och)
 
                     groups = [torch.cuda.LongTensor(g) for g in groups]
-                    grnorm = torch.stack([chnorm.index_select(0, g).mean(0) if len(g) > 0
-                                          else chnorm.index_select(0, g).sum(0) for g in groups])
+                    grnorm = torch.stack([chnorm.index_select(0, g).sum(0) for g in groups])
                     grth = grnorm.sort(dim=1)[0][:, int(i * self.ratio)].view(self.numgroup, 1)
 
                     negind = (grnorm <= grth).view(1, self.numgroup, i).float()
                     infloss = chnorm.view(o, 1, i).mul(negind).sum(dim=2)  # o x n_group
+
+                    # group optimization
                     transloss, transition = infloss.sort(dim=1)  # o x n_group, o x n_group
                     loss, sample = transloss.tolist(), transition.tolist()
                     on = [0 for _ in range(o)]
@@ -127,6 +129,7 @@ class SGD_GCP(Optimizer):
                             groups[prevgr].remove(ch)
                             groups[nextgr].append(ch)
 
+                    # masking
                     groups = [torch.cuda.LongTensor(g) for g in groups]
                     p.groups = groups
                     grnorm = torch.stack([chnorm.index_select(0, g).mean(0) if len(g) > 0
@@ -140,7 +143,7 @@ class SGD_GCP(Optimizer):
 
                     p.data.mul_(p.ind)
 
-                    bar.set_description("[infloss:%.4f]" % (totalloss,))
+                    bar.set_description("[pruning_loss:%.4f]" % (totalloss**0.5,))
                 bar.update()
             bar.close()
 
