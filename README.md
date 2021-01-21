@@ -70,7 +70,9 @@ Import gcp.py and replace SGD optimizer in training code.
 
 ```
 import gcp
+
 ...
+
 # SGD optimizier
 optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 # SGD with group lasso optimizier
@@ -78,11 +80,12 @@ optimizer = SGD_GL(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_
 # SGD + GCP
 optimizer = SGD_GCP(cnn.parameters(), lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay,
                         ratio=1 - args.prune, numgroup=args.groups)
+
 ...
+
 # In retraining, add a group lasso term to loss
 loss = criterion(outputs, labels) + optimizer.reg(reg)
 
 ...
-
 
 ```
