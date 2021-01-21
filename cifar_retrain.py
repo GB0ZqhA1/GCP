@@ -11,7 +11,7 @@ import warnings
 warnings.warn = warn
 
 parser = argparse.ArgumentParser(description='CIFAR-10 Retraining')
-parser.add_argument('--save_dir', type=str, default='./cifarmodel', help='Folder to save checkpoints and log.')
+parser.add_argument('--save_dir', type=str, default='./cifarmodel/', help='Folder to save checkpoints and log.')
 parser.add_argument('-l', '--layers', default=20, type=int, metavar='N', help='number of ResNet layers (default: 20)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N', help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=164, type=int, metavar='N', help='number of total epochs to run')
