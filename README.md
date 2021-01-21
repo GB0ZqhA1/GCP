@@ -44,21 +44,21 @@ python cifar_retrain.py -l 110 [--reg 1e-5] [--save-dir ./cifarmodel] [--workers
 **Pruning+finetuning**
 
 ```
-# prune 50% channels in ResNet20 with 16 groups
-python cifar_prune.py -l 20 -g 16 -p 0.5 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
-
 # prune 60% channels in ResNet20 with 16 groups
 python cifar_prune.py -l 20 -g 16 -p 0.6 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
 
-# prune 50% channels in ResNet20 with 4 groups
-python cifar_prune.py -l 20 -g 4 -p 0.5 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+# prune 70% channels in ResNet20 with 16 groups
+python cifar_prune.py -l 20 -g 16 -p 0.7 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
 
-# prune 50% channels in ResNet32 with 16 groups
-python cifar_prune.py -l 32 -g 16 -p 0.5 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+# prune 60% channels in ResNet20 with 4 groups
+python cifar_prune.py -l 20 -g 4 -p 0.6 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
 
-# prune 50% channels in ResNet56 with 16 groups
-python cifar_prune.py -l 56 -g 16 -p 0.5 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+# prune 60% channels in ResNet32 with 16 groups
+python cifar_prune.py -l 32 -g 16 -p 0.6 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
 
-# prune 50% channels in ResNet110 with 16 groups
-python cifar_prune.py -l 110 -g 16 -p 0.5 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+# prune 60% channels in ResNet56 with 16 groups
+python cifar_prune.py -l 56 -g 16 -p 0.6 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+
+# prune 60% channels in ResNet110 with 16 groups
+python cifar_prune.py -l 110 -g 16 -p 0.6 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
 ```
