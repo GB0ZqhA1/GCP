@@ -149,4 +149,4 @@ def network(layers):
 
 
 if __name__ == '__main__':
-    train('resnet%d%.2fC%dx.pkl'%(args.layers,args.prune,args.groups), network)
+    train('resnet%d%.2fC%dx.pkl'%(args.layers,args.comp,args.groups), network)
