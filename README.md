@@ -66,7 +66,7 @@ python cifar_prune.py -l 110 -g 16 -p 0.6 [--save-dir ./cifarmodel] [--workers 4
 
 ## Usage of ImageNet 
 
-Import gcp.py and replace SGD optimizer in training code.
+Import gcp.py and replace SGD optimizer in your training code.
 
 ```
 import gcp
