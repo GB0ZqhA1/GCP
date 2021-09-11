@@ -326,13 +326,13 @@ class SGD_GL(Optimizer):
         for group in self.param_groups:
             group.setdefault('nesterov', False)
 
-    def reg(self, rate):
+    def reg(self, rate1, rate2):
         loss=0
         for group in self.param_groups:
             for p in group['params']:
                 if hasattr(p, "position"):
-                    loss += p.norm(dim=3).norm(dim=2).sum()
-        return loss*rate
+                    loss += p.view(p.size(0),p.size(1),-1).abs().var(dim=2).sum()*rate2 + p.norm(dim=3).norm(dim=2).sum()*rate1
+        return loss
 
     @torch.no_grad()
     def step(self, closure=None):
