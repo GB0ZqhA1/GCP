@@ -45,22 +45,22 @@ python cifar_retrain.py -l 110 [--reg 1e-5] [--save-dir ./cifarmodel] [--workers
 
 ```
 # prune 60% channels in ResNet20 with 16 groups
-python cifar_prune.py -l 20 -g 16 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-4]
+python cifar_prune.py -l 20 -g 16 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 
 # prune 70% channels in ResNet20 with 16 groups
-python cifar_prune.py -l 20 -g 16 -c 0.3 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-4]
+python cifar_prune.py -l 20 -g 16 -c 0.3 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 
 # prune 60% channels in ResNet20 with 4 groups
-python cifar_prune.py -l 20 -g 4 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-4]
+python cifar_prune.py -l 20 -g 4 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 
 # prune 60% channels in ResNet32 with 16 groups
-python cifar_prune.py -l 32 -g 16 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-4]
+python cifar_prune.py -l 32 -g 16 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 
 # prune 60% channels in ResNet56 with 16 groups
-python cifar_prune.py -l 56 -g 16 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-4]
+python cifar_prune.py -l 56 -g 16 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 
 # prune 60% channels in ResNet110 with 16 groups
-python cifar_prune.py -l 110 -g 16 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-4]
+python cifar_prune.py -l 110 -g 16 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 ```
 
 
@@ -84,7 +84,7 @@ optimizer = SGD_GCP(cnn.parameters(), lr=args.learning_rate, momentum=args.momen
 ...
 
 # In retraining, add a group lasso term to loss
-loss = criterion(outputs, labels) + optimizer.reg(reg)
+loss = criterion(outputs, labels) + optimizer.reg(reg, 5e-5)
 
 ...
 
