@@ -85,7 +85,7 @@ def train(filename, network):
             labels = labels.to(device)
 
             outputs = cnn(gpuimg)
-            loss = criterion(outputs, labels) + optimizer.reg(reg)
+            loss = criterion(outputs, labels) + optimizer.reg(reg, 5e-5)
 
             optimizer.zero_grad()
             loss.backward()
