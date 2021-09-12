@@ -60,9 +60,11 @@ def train(filename, network):
     torch.backends.cudnn.benchmark=True
     cnn, netname = network(args.layers)
     config = netname+"_%d"%(args.groups)
-    state_dict, baseacc = torch.load(args.save_dir+'/'+ netname+ 'R.pkl')
-
-    cnn.load_state_dict(state_dict)
+    try:
+        state_dict, baseacc = torch.load(args.save_dir+'/'+ netname+ 'R.pkl')
+        cnn.load_state_dict(state_dict)
+    except:
+        pass
 
     criterion = nn.CrossEntropyLoss()
 
