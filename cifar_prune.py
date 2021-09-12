@@ -64,7 +64,14 @@ def train(filename, network):
         state_dict, baseacc = torch.load(args.save_dir+'/'+ netname+ 'R.pkl')
         cnn.load_state_dict(state_dict)
     except:
-        pass
+        for m in cnn.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out')
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.constant_(m.bias, 0)
 
     criterion = nn.CrossEntropyLoss()
 
