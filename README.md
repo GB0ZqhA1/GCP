@@ -29,16 +29,16 @@ python cifar_pretrain.py -l 110 [--save-dir ./cifarmodel] [--workers 4] [--epoch
 
 ```
 # retrain ResNet20
-python cifar_retrain.py -l 20 [--reg 5e-5] [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+python cifar_train.py -l 20 [--reg 5e-5] [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
 
 # retrain ResNet32
-python cifar_retrain.py -l 32 [--reg 3e-5] [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+python cifar_train.py -l 32 [--reg 3e-5] [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
 
 # retrain ResNet56
-python cifar_retrain.py -l 56 [--reg 2e-5] [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+python cifar_train.py -l 56 [--reg 2e-5] [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
 
 # retrain ResNet110
-python cifar_retrain.py -l 110 [--reg 1e-5] [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+python cifar_train.py -l 110 [--reg 1e-5] [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
 ```
 
 **Pruning+finetuning**
