@@ -70,8 +70,19 @@ def train(filename, network):
     torch.backends.cudnn.benchmark=True
     cnn, netname = network(args.layers)
     config = netname
-    cnn.load_state_dict(torch.load(args.save_dir+'/'+netname+'.pkl')[0])
+    try:
+        cnn.load_state_dict(torch.load(args.save_dir+'/'+netname+'.pkl')[0])
+    except:
+        for m in cnn.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out')
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.constant_(m.bias, 0)
 
+    
     criterion = nn.CrossEntropyLoss()
     bestacc=0
     optimizer = SGD_GL(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
