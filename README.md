@@ -7,7 +7,7 @@
 - tqdm
 
 ## Usage of CIFAR-10 
-Three-stage operations: (1) pretraining, (2) retraining+regularizing, (3) pruning+fine-tuning
+Three-stage operations: (1) pretraining (optional), (2) training+regularizing, (3) pruning+fine-tuning
 
 **Pretraining**
 
@@ -25,7 +25,7 @@ python cifar_pretrain.py -l 56 [--save-dir ./cifarmodel] [--workers 4] [--epochs
 python cifar_pretrain.py -l 110 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
 ```
 
-**Retraining+regularizing**
+**Training+regularizing**
 
 ```
 # retrain ResNet20
@@ -83,7 +83,7 @@ optimizer = SGD_GCP(cnn.parameters(), lr=args.learning_rate, momentum=args.momen
 
 ...
 
-# In retraining, add a group lasso term to loss
+# In training with regularization, add a group lasso term to loss
 loss = criterion(outputs, labels) + optimizer.reg(reg, 5e-5)
 
 ...
