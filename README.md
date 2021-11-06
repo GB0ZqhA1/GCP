@@ -92,7 +92,7 @@ loss = criterion(outputs, labels) + optimizer.reg(reg, 5e-5)
 
 ## Hyperparameters of Models for Imagenet
 
-ResNet18: alpha = 5e-5
-ResNet50: alpha = 3e-5
-MobileNetV2: alpha = 5e-5
+- ResNet18: alpha = 5e-5
+- ResNet50: alpha = 3e-5
+- MobileNetV2: alpha = 5e-5
 
