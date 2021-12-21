@@ -1,5 +1,7 @@
 # Grouped Channel Pruning: A Group-and-Prune Paradigm for Compressing Convolutional Neural Networks
 
+We will provide accelerated ImageNet models for inference via Google Drive.
+
 ## Requirements
 - Python 3.6
 - PyTorch 1.10.0
