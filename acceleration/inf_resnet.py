@@ -25,7 +25,7 @@ def conv1x1(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1) -
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, groups=groups, bias=False)
 
 
-class BasicBlock(nn.Module):
+class InfBasicBlock(nn.Module):
     expansion: int = 1
 
     def __init__(
@@ -43,25 +43,18 @@ class BasicBlock(nn.Module):
         super().__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
-        if base_width != 64:
-            raise ValueError("BasicBlock only supports groups=1 and base_width=64")
         if dilation > 1:
             raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
-        self.conv1 = conv3x3(math.ceil(inplanes*comp)*groups, planes, stride, groups=groups)
-        self.bn1 = norm_layer(planes)
+        self.conv1 = None #conv3x3(inplanes, planes, stride, groups=groups)
+        self.bn1 = None #norm_layer(planes)
         self.relu = nn.ReLU(inplace=True)
-        self.conv2 = conv3x3(math.ceil(planes*comp)*groups, planes, groups=groups)
+        self.conv2 = None #conv3x3(planes, planes, groups=groups)
         self.bn2 = norm_layer(planes)
         self.downsample = downsample
         self.stride = stride
     
     def load_from_pruned_checkpoints(self, block):
-        sconv1 = self.conv1
-        sbn1 = self.bn1
-        sconv2 = self.conv2
-        sbn2 = self.bn2
-
         pconv1 = block.conv1
         pbn1 = block.bn1
         pconv2 = block.conv2
@@ -71,6 +64,49 @@ class BasicBlock(nn.Module):
         ch12 = pconv2.weight.ind
         gr1 = pconv1.weight.groups
         gr2 = pconv2.weight.groups
+        
+        ########################################################################
+        # This part is manual implementation of the unused filter removal,     #
+        # which is automatically done by compiling the model using torch.jit.  #
+        ########################################################################
+        
+        # removed = (1-ch12).prod(dim=0).squeeze().nonzero(as_tuple=True)[0].tolist()
+        # grouplist = [[] for _ in gr1]
+        
+        # for g, gl in zip(gr1, grouplist):
+        #     for r in removed:
+        #         if r in g:
+        #             gl.append(r)
+        
+        # num_removed=min([len(gl) for gl in grouplist])
+        # remove_list = [gl[:num_removed] for gl in grouplist]
+        # print(remove_list)
+        # new_gr1 = []
+        # for r, g in zip(remove_list, gr1):
+        #     list_g = g.tolist()
+        #     for f in r:
+        #         list_g.remove(f)
+        #     new_gr1.append(torch.tensor(list_g, dtype=g.dtype, device=g.device))
+        # gr1 = new_gr1
+        
+        inp1 = ch01[0].count_nonzero().item()
+        g1 = len(gr1)
+        p1 = pconv1.weight.size(0)#-num_removed*g1
+        print(inp1, p1, g1)
+        
+        inp2 = ch12[0].count_nonzero().item()
+        p2 = pconv2.weight.size(0)
+        g2 = len(gr2)
+        print(inp2, p2, g2)
+        
+        self.conv1 = conv3x3(inp1*g1, p1, self.stride, groups=g1).to(self.bn2.weight.device)
+        self.bn1 = nn.BatchNorm2d(p1).to(self.bn2.weight.device)
+        self.conv2 = conv3x3(inp2*g2, p2, groups=g2).to(self.bn2.weight.device)
+
+        sconv1 = self.conv1
+        sbn1 = self.bn1
+        sconv2 = self.conv2
+        sbn2 = self.bn2
         
         group_filters = []
         group_bn_means = []
@@ -96,7 +132,6 @@ class BasicBlock(nn.Module):
 
             for ch_ind in g.tolist():
                 shuffle_map1[ch_ind] = len(shuffle_map1)
-            
         new_w = torch.cat(group_filters, dim=0)
         new_bn_m = torch.cat(group_bn_means, dim=0)
         new_bn_v = torch.cat(group_bn_vars, dim=0)
@@ -159,7 +194,6 @@ class BasicBlock(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         identity = x
-
         out = self.conv1(x[:,self.sample1])
         out = self.bn1(out)
         out = self.relu(out)
@@ -176,7 +210,7 @@ class BasicBlock(nn.Module):
         return out
 
 
-class Bottleneck(nn.Module):
+class InfBottleneck(nn.Module):
     expansion: int = 4
 
     def __init__(
@@ -194,25 +228,18 @@ class Bottleneck(nn.Module):
         super().__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
-        width = int(planes * (base_width / 64.0))
-        self.conv1 = conv1x1(math.ceil(inplanes*comp)*groups, width, groups=groups)
-        self.bn1 = norm_layer(width)
-        self.conv2 = conv3x3(math.ceil(width*comp)*groups, width, stride, groups, dilation)
-        self.bn2 = norm_layer(width)
-        self.conv3 = conv1x1(math.ceil(width*comp)*groups, planes * self.expansion, groups=groups)
+        #width = int(planes * (base_width / 64.0))
+        self.conv1 = None #conv1x1(math.ceil(inplanes*comp)*groups, width, groups=groups)
+        self.bn1 = None #norm_layer(width)
+        self.conv2 = None #conv3x3(math.ceil(width*comp)*groups, width, stride, groups, dilation)
+        self.bn2 = None #norm_layer(width)
+        self.conv3 = None #conv1x1(math.ceil(width*comp)*groups, planes * self.expansion, groups=groups)
         self.bn3 = norm_layer(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
 
     def load_from_pruned_checkpoints(self, block):
-        sconv1 = self.conv1
-        sbn1 = self.bn1
-        sconv2 = self.conv2
-        sbn2 = self.bn2
-        sconv3 = self.conv3
-        sbn3 = self.bn3
-
         pconv1 = block.conv1
         pbn1 = block.bn1
         pconv2 = block.conv2
@@ -226,6 +253,37 @@ class Bottleneck(nn.Module):
         gr1 = pconv1.weight.groups
         gr2 = pconv2.weight.groups
         gr3 = pconv3.weight.groups
+        
+        
+        inp1 = ch01[0].count_nonzero().item()
+        g1 = len(gr1)
+        p1 = pconv1.weight.size(0)#-num_removed*g1
+        print(inp1, p1, g1)
+        
+        inp2 = ch12[0].count_nonzero().item()
+        p2 = pconv2.weight.size(0)
+        g2 = len(gr2)
+        print(inp2, p2, g2)
+        
+        inp3 = ch23[0].count_nonzero().item()
+        p3 = pconv3.weight.size(0)
+        g3 = len(gr3)
+        print(inp3, p3, g3)
+        
+        self.conv1 = conv1x1(inp1*g1, p1, groups=g1).to(self.bn3.weight.device)
+        self.bn1 = nn.BatchNorm2d(p1).to(self.bn3.weight.device)
+        self.conv2 = conv3x3(inp2*g2, p2, self.stride, groups=g2).to(self.bn3.weight.device)
+        self.bn2 = nn.BatchNorm2d(p2).to(self.bn3.weight.device)
+        self.conv3 = conv1x1(inp3*g3, p3, groups=g3).to(self.bn3.weight.device)
+        
+        
+        sconv1 = self.conv1
+        sbn1 = self.bn1
+        sconv2 = self.conv2
+        sbn2 = self.bn2
+        sconv3 = self.conv3
+        sbn3 = self.bn3
+        
         
         group_filters = []
         group_bn_means = []
@@ -284,18 +342,20 @@ class Bottleneck(nn.Module):
             group_bn_vars.append(bn_v)
             group_bn_weights.append(bn_w)
             group_bn_bias.append(bn_b)
-            for r in remaining_ch.tolist():
-                sample2.append(shuffle_map1[r])
+            sample2.append([shuffle_map1[r] for r in remaining_ch.tolist()])
 
             for ch_ind in g.tolist():
                 shuffle_map2[ch_ind] = len(shuffle_map2)
+        ch_size = min([g.size(1) for g in group_filters])
+        group_filters = [g[:,:ch_size,:,:] for g in group_filters]
+        sample2 = [g[:ch_size] for g in sample2]
             
         new_w = torch.cat(group_filters, dim=0)
         new_bn_m = torch.cat(group_bn_means, dim=0)
         new_bn_v = torch.cat(group_bn_vars, dim=0)
         new_bn_w = torch.cat(group_bn_weights, dim=0)
         new_bn_b = torch.cat(group_bn_bias, dim=0)
-        self.sample2 = torch.tensor(sample2, dtype=w.dtype).long()
+        self.sample2 = torch.tensor(sample2, dtype=w.dtype).view(-1).long()
         sconv2.weight.data.copy_(new_w)
         sbn2.running_mean.data.copy_(new_bn_m)
         sbn2.running_var.data.copy_(new_bn_v)
@@ -376,12 +436,10 @@ class Bottleneck(nn.Module):
 class ResNet(nn.Module):
     def __init__(
         self,
-        block: Type[Union[BasicBlock, Bottleneck]],
+        block: Type[Union[InfBasicBlock, InfBottleneck]],
         layers: List[int],
         num_classes: int = 1000,
         zero_init_residual: bool = False,
-        groups: int = 1,
-        comp: float = 1.,
         width_per_group: int = 64,
         replace_stride_with_dilation: Optional[List[bool]] = None,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
@@ -400,8 +458,6 @@ class ResNet(nn.Module):
                 "replace_stride_with_dilation should be None "
                 f"or a 3-element tuple, got {replace_stride_with_dilation}"
             )
-        self.groups = groups
-        self.comp = comp
         self.base_width = width_per_group
         self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = norm_layer(self.inplanes)
@@ -426,14 +482,14 @@ class ResNet(nn.Module):
         # This improves the model by 0.2~0.3% according to https://arxiv.org/abs/1706.02677
         if zero_init_residual:
             for m in self.modules():
-                if isinstance(m, Bottleneck):
+                if isinstance(m, InfBottleneck):
                     nn.init.constant_(m.bn3.weight, 0)  # type: ignore[arg-type]
-                elif isinstance(m, BasicBlock):
+                elif isinstance(m, InfBasicBlock):
                     nn.init.constant_(m.bn2.weight, 0)  # type: ignore[arg-type]
 
     def _make_layer(
         self,
-        block: Type[Union[BasicBlock, Bottleneck]],
+        block: Type[Union[InfBasicBlock, InfBottleneck]],
         planes: int,
         blocks: int,
         stride: int = 1,
@@ -454,7 +510,7 @@ class ResNet(nn.Module):
         layers = []
         layers.append(
             block(
-                self.inplanes, planes, stride, downsample, self.groups, self.comp, self.base_width, previous_dilation, norm_layer
+                self.inplanes, planes, stride, downsample, self.base_width, previous_dilation, norm_layer
             )
         )
         self.inplanes = planes * block.expansion
@@ -463,8 +519,6 @@ class ResNet(nn.Module):
                 block(
                     self.inplanes,
                     planes,
-                    groups=self.groups,
-                    comp=self.comp,
                     base_width=self.base_width,
                     dilation=self.dilation,
                     norm_layer=norm_layer,
@@ -505,7 +559,7 @@ class ResNet(nn.Module):
 
 
 def _resnet(
-    block: Type[Union[BasicBlock, Bottleneck]],
+    block: Type[Union[InfBasicBlock, InfBottleneck]],
     layers: List[int],
     **kwargs: Any,
 ) -> ResNet:
@@ -520,7 +574,7 @@ def inf_resnet18(**kwargs: Any) -> ResNet:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return _resnet(BasicBlock, [2, 2, 2, 2], **kwargs)
+    return _resnet(InfBasicBlock, [2, 2, 2, 2], **kwargs)
 
 
 def inf_resnet50(**kwargs: Any) -> ResNet:
@@ -530,5 +584,5 @@ def inf_resnet50(**kwargs: Any) -> ResNet:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return _resnet(Bottleneck, [3, 4, 6, 3], **kwargs)
+    return _resnet(InfBottleneck, [3, 4, 6, 3], **kwargs)
 
