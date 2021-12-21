@@ -168,8 +168,8 @@ def wrn(layers):
 if __name__ == '__main__':
     results = []
     if args.arch == 'resnet':
-        results.append((th,train('resnet%d_C%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups), resnet)))
+        results.append(train('resnet%d_C%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups), resnet))
 
     elif args.arch == 'wrn':
-        results.append((th,train('wrn%d_C%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups), wrn)))
+        results.append(train('wrn%d_C%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups), wrn))
     
