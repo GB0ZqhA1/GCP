@@ -2,6 +2,7 @@ import torch
 import math, random
 from tqdm import tqdm
 from model import *
+from torchvision.models.resnet import BasicBlock, Bottleneck
 
 def prune_reg(model, decay):
     reg = 0.0
@@ -44,8 +45,15 @@ class GCP:
             elif isinstance(m, wide_basic):
                 self.blocks.append([m.conv2.weight,m.conv1.weight])
                 self.hooks.append([Hook(m.conv2), Hook(m.conv1)])
+            elif isinstance(m, BasicBlock):
+                self.blocks.append([m.conv2.weight,m.conv1.weight])
+                self.hooks.append([Hook(m.conv2), Hook(m.conv1)])
+            elif isinstance(m, Bottleneck):
+                self.blocks.append([m.conv3.weight,m.conv2.weight,m.conv1.weight])
+                self.hooks.append([Hook(m.conv3), Hook(m.conv2), Hook(m.conv1)])
         
-        network(torch.randn(1,3,32,32).to(next(network.parameters()).device))
+        
+        network(torch.randn(1,3,224,224).to(next(network.parameters()).device))
         
         input_sizes=[]
         for h in self.hooks:
