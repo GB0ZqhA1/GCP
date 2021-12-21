@@ -3,7 +3,7 @@
 ## Requirements
 - Python 3.6
 - PyTorch 1.10.0
-- TorchVision 0.2.0
+- TorchVision 0.11.0
 - tqdm
 
 ## Usage of CIFAR-10 
