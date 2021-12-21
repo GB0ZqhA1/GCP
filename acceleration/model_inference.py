@@ -27,6 +27,10 @@ parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
                         ' (default: resnet18)')
 parser.add_argument('-m', '--model', metavar='MODEL', default=None,
                     help='model file')
+parser.add_argument('-g', '--group', metavar='MODEL', default=None,
+                    help='model file')
+parser.add_argument('-i', '--ind', metavar='MODEL', default=None,
+                    help='model file')
 parser.add_argument('-j', '--workers', default=16, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 
@@ -86,8 +90,8 @@ def main_worker(args):
         else:
             print("=> no checkpoint found at '{}'".format(loadname))
 
-    groups = torch.load(args.arch+'R_8x_0.4_groups.pkl', map_location=torch.device(loc))
-    inds = torch.load(args.arch+'R_8x_0.4_inds.pkl', map_location=torch.device(loc))
+    groups = torch.load(args.group, map_location=torch.device(loc))
+    inds = torch.load(args.ind, map_location=torch.device(loc))
     pruner = GCP(model, 0, 0, 8)
     set_groups(model, groups, inds)
     if args.arch == "resnet18":
