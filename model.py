@@ -1,16 +1,7 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-class DownsampleA(nn.Module):
-
-  def __init__(self, stride):
-    super(DownsampleA, self).__init__()
-    assert stride == 2
-    self.avg = nn.AvgPool2d(kernel_size=1, stride=stride)
-
-  def forward(self, x):
-    x = self.avg(x)
-    return torch.cat((x, x.mul(0)), 1)
 
 class ResNetBasicblock(nn.Module):
     expansion = 1
@@ -78,7 +69,11 @@ class CifarResNet(nn.Module):
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = DownsampleA(stride)
+            downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes * block.expansion,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(planes * block.expansion),
+            )
 
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample))
@@ -98,3 +93,70 @@ class CifarResNet(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         return self.classifier(x)
+
+def conv3x3(in_planes, out_planes, stride=1):
+    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
+
+class wide_basic(nn.Module):
+    def __init__(self, in_planes, planes, stride=1):
+        super(wide_basic, self).__init__()
+        self.bn1 = nn.BatchNorm2d(in_planes)
+        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, padding=1, stride=stride, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, padding=1, bias=False)
+
+        self.conv1.weight.position=0
+        self.conv2.weight.position=1
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_planes != planes:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_planes, planes, kernel_size=1, stride=stride, bias=False),
+            )
+
+    def forward(self, x):
+        out = self.conv1(F.relu(self.bn1(x)))
+        out = self.conv2(F.relu(self.bn2(out)))
+        out += self.shortcut(x)
+
+        return out
+
+class Wide_ResNet(nn.Module):
+    def __init__(self, depth, widen_factor, num_classes):
+        super(Wide_ResNet, self).__init__()
+        self.in_planes = 16
+
+        assert ((depth-4)%6 ==0), 'Wide-resnet depth should be 6n+4'
+        n = (depth-4)/6
+        k = widen_factor
+
+        print('| Wide-Resnet %dx%d' %(depth, k))
+        nStages = [16, 16*k, 32*k, 64*k]
+
+        self.conv1 = conv3x3(3,nStages[0])
+        self.layer1 = self._wide_layer(wide_basic, nStages[1], n, stride=1)
+        self.layer2 = self._wide_layer(wide_basic, nStages[2], n, stride=2)
+        self.layer3 = self._wide_layer(wide_basic, nStages[3], n, stride=2)
+        self.bn1 = nn.BatchNorm2d(nStages[3])
+        self.linear = nn.Linear(nStages[3], num_classes)
+
+    def _wide_layer(self, block, planes, num_blocks, stride):
+        strides = [stride] + [1]*int(num_blocks-1)
+        layers = []
+
+        for stride in strides:
+            layers.append(block(self.in_planes, planes, stride))
+            self.in_planes = planes
+
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.layer1(out)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = F.relu(self.bn1(out))
+        out = F.avg_pool2d(out, 8)
+        out = out.view(out.size(0), -1)
+        out = self.linear(out)
+
+        return out

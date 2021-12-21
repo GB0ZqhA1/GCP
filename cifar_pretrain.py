@@ -1,6 +1,8 @@
+import os
 import torchvision.datasets as dsets
 import torchvision.transforms as transforms
 from torch.optim.lr_scheduler import MultiStepLR
+from gcp import *
 from tqdm import tqdm
 from model import *
 import argparse
@@ -11,7 +13,9 @@ warnings.warn = warn
 
 parser = argparse.ArgumentParser(description='CIFAR-10 Training')
 parser.add_argument('--save_dir', type=str, default='./cifarmodel/', help='Folder to save checkpoints and log.')
+parser.add_argument('-a', '--arch', default='resnet', type=str, metavar='N', help='network architecture (default: resnet)')
 parser.add_argument('-l', '--layers', default=20, type=int, metavar='N', help='number of ResNet layers (default: 20)')
+parser.add_argument('-d', '--device', default='0', type=str, metavar='N', help='main device (default: 0)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N', help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=164, type=int, metavar='N', help='number of total epochs to run')
 parser.add_argument('-b', '--batch-size', default=128, type=int, metavar='N', help='mini-batch size (default: 256)')
@@ -20,6 +24,7 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='mo
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
 
 args = parser.parse_args()
+os.environ["CUDA_VISIBLE_DEVICES"]=args.device
 
 
 def get_lr(optimizer):
@@ -78,21 +83,24 @@ def train(filename, network):
 
     criterion = nn.CrossEntropyLoss()
     bestacc=0
-    optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    scheduler = MultiStepLR(optimizer, [args.epochs//2,args.epochs*3//4], 0.1)
+    if 'resnet' in filename:
+        optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+        scheduler = MultiStepLR(optimizer, [args.epochs//2,args.epochs*3//4], 0.1)
+    elif 'wrn' in filename:
+        optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay, nesterov=True)
+        scheduler = MultiStepLR(optimizer, [args.epochs*3//10,args.epochs*6//10,args.epochs*4//5], 0.2)
 
     bar = tqdm(total=len(train_loader) * args.epochs)
     for epoch in range(args.epochs):
         cnn.train()
         warmup(optimizer, args.lr, epoch)
         for step, (images, labels) in enumerate(train_loader):
+            optimizer.zero_grad()
             gpuimg = images.to(device)
             labels = labels.to(device)
 
             outputs = cnn(gpuimg)
             loss = criterion(outputs, labels)
-
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f" % (get_lr(optimizer)[0], loss.item(), bestacc))
@@ -120,9 +128,15 @@ def train(filename, network):
     bar.close()
     return bestacc
 
-def network(layers):
+def resnet(layers):
     return CifarResNet(ResNetBasicblock, layers, 10).to(device), "resnet"+str(layers)
+
+def wrn(layers):
+    return Wide_ResNet(layers, 8, 10).to(device), "wrn"+str(layers)
 
 
 if __name__ == '__main__':
-    train('resnet%d.pkl'%(args.layers), network)
+    if args.arch == 'resnet':
+        train('resnet%d_%s.pkl'%(args.layers, args.device), resnet)
+    elif args.arch == 'wrn':
+        train('wrn%d_%s.pkl'%(args.layers, args.device), wrn)

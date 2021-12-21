@@ -1,3 +1,4 @@
+import os
 import torchvision.datasets as dsets
 import torchvision.transforms as transforms
 from torch.optim.lr_scheduler import CosineAnnealingLR
@@ -12,18 +13,34 @@ warnings.warn = warn
 
 parser = argparse.ArgumentParser(description='CIFAR-10 Pruning')
 parser.add_argument('--save_dir', type=str, default='./cifarmodel/', help='Folder to save checkpoints and log.')
+parser.add_argument('-a', '--arch', default='resnet', type=str, metavar='N', help='network architecture (default: resnet)')
 parser.add_argument('-l', '--layers', default=20, type=int, metavar='N', help='number of ResNet layers (default: 20)')
+parser.add_argument('-d', '--device', default='0', type=str, metavar='N', help='main device (default: 0)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N', help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=164, type=int, metavar='N', help='number of total epochs to run')
 parser.add_argument('-b', '--batch-size', default=128, type=int, metavar='N', help='mini-batch size (default: 256)')
 parser.add_argument('--lr', '--learning-rate', default=0.05, type=float, metavar='LR', help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-3, type=float, metavar='W', help='weight decay (default: 1e-4)')
-parser.add_argument('-c', '--comp', type=float, metavar='N', help='remaining channels (%)')
-parser.add_argument('-g', '--groups', default=4, type=int, metavar='N', help='number of groups (default: 4)')
+parser.add_argument('-c', '--comp', default=-1, type=float, metavar='N', help='remaining channels (%)')
+parser.add_argument('-t', '--threshold', default=-1, type=float, metavar='N', help='remaining channels (%)')
+parser.add_argument('--reg', default=-1, type=float, metavar='N', help='remaining channels (%)')
+parser.add_argument('-g', '--groups', default=8, type=int, metavar='N', help='number of groups (default: 4)')
 parser.add_argument('--mode', type=str, default='AO', help='Pruning mode (C or AO) (default: AO)')
 
 args = parser.parse_args()
+os.environ["CUDA_VISIBLE_DEVICES"]=args.device
+
+def warmup(optimizer, lr, epoch):
+    if epoch < 2:
+        lr = lr/4
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
+    if epoch == 2:
+        lr = lr
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
 
 def get_lr(optimizer):
     return [param_group['lr'] for param_group in optimizer.param_groups]
@@ -60,33 +77,32 @@ def train(filename, network):
     torch.backends.cudnn.benchmark=True
     cnn, netname = network(args.layers)
     config = netname+"_%d"%(args.groups)
-    state_dict, baseacc = torch.load(args.save_dir+'/'+ netname+ 'R.pkl')
+    
+    if 'resnet' in filename:
+        loadpath = args.save_dir+'/resnet%d_R%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups)
+    elif 'wrn' in filename:
+        loadpath = args.save_dir+'/wrn%d_R%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups)
+    state_dict, baseacc = torch.load(loadpath)
+    print(loadpath)
     cnn.load_state_dict(state_dict)
 
     criterion = nn.CrossEntropyLoss()
 
 
     bestacc=0
-    optimizer = SGD_GCP(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay,
-                        ratio=args.comp, numgroup=args.groups)
-
-    if args.mode == "C":
-        optimizer.kmeans()
-    elif args.mode == "AO":
-        optimizer.cluster()
-    else:
-        print("Invalid pruning mode")
-        return
+    if 'resnet' in filename:
+        optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+    elif 'wrn' in filename:
+        optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay, nesterov=True)
 
     scheduler = CosineAnnealingLR(optimizer, args.epochs)
-
+    pruner = GCP(cnn, args.comp, args.threshold, args.groups)
+    totalloss, layer_wise_cr = pruner.initialize()
+    pruner.prune()
     rp = 0
     tp = 0
     comps = []
-    for m in cnn.modules():
-        if isinstance(m, ResNetBasicblock):
-            m.conv_a.weight.nextind=m.conv_b.weight.ind
-            m.conv_b.weight.prevind = m.conv_a.weight.ind
+    total = []
     for m in cnn.modules():
         if isinstance(m, nn.Conv2d):
             param = m.weight
@@ -94,29 +110,28 @@ def train(filename, network):
             t = param.data.numel()
             rp += r
             tp += t
-            if hasattr(param, "nextind"):
-                comp = param.ind.float().mean().item() * (param.nextind.float().sum(0) > 0).float().mean().item()
-                comps.append(comp)
-            elif hasattr(param, "ind"):
-                comp = param.ind.float().mean().item()
-                comps.append(comp)
+            if hasattr(param, "comp_rate"):
+                o,i,k,_ = param.size()
+                comps.append(i/o*k*k*param.comp_rate)
+                total.append(i/o*k*k)
+    flop_rate = sum(comps)/sum(total)*100
     print("total parameters : %d/%d (%f)" % (tp - rp, tp, (tp - rp) / tp))
 
     bar = tqdm(total=len(train_loader) * args.epochs)
     for epoch in range(args.epochs):
         cnn.train()
-        bar.set_description("["+config+"]CH:%.2f|BASE:%.2f|ACC:%.2f" % (sum(comps)/len(comps)*100, baseacc, bestacc))
+        warmup(optimizer, args.lr, epoch)
+        bar.set_description("["+config+"]CH:%.2f|BASE:%.2f|ACC:%.2f" % (flop_rate, baseacc, bestacc))
         for step, (images, labels) in enumerate(train_loader):
-
+            optimizer.zero_grad()
             gpuimg = images.to(device)
             labels = labels.to(device)
 
             outputs = cnn(gpuimg)
             loss = criterion(outputs, labels)
-
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            pruner.prune()
             bar.update()
 
         scheduler.step()
@@ -136,16 +151,36 @@ def train(filename, network):
 
         if bestacc<acc:
             bestacc=acc
-            torch.save([cnn.state_dict(),bestacc,sum(comps)/len(comps)], args.save_dir+filename)
+            torch.save([cnn.state_dict(),bestacc,flop_rate], args.save_dir+filename)
             bar.set_description(
-                "[" + config + "]CH:%.2f|BASE:%.2f|ACC:%.2f" % (sum(comps) / len(comps) * 100, baseacc, bestacc))
+                "[" + config + "]CH:%.2f|BASE:%.2f|ACC:%.2f" % (flop_rate, baseacc, bestacc))
 
     bar.close()
-    return baseacc, bestacc, sum(comps)/len(comps)
+    return bestacc, flop_rate, totalloss, layer_wise_cr
 
-def network(layers):
+def resnet(layers):
     return CifarResNet(ResNetBasicblock, layers, 10).to(device), "resnet"+str(layers)
+
+def wrn(layers):
+    return Wide_ResNet(layers, 8, 10).to(device), "wrn"+str(layers)
 
 
 if __name__ == '__main__':
-    train('resnet%d%.2fC%dx.pkl'%(args.layers,args.comp,args.groups), network)
+    results = []
+    if args.arch == 'resnet':
+        for l, reg in [(20, 5e-5),(32, 3e-5),(56, 2e-5),(110, 1e-5)]:
+            for th in [0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6]:
+                args.reg = reg
+                args.layers = l
+                args.threshold = th
+                results.append((th,train('resnet%d_C%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups), resnet)))
+
+    elif args.arch == 'wrn':
+        for l, reg in [(16, 1e-5),(28, 5e-6)]:
+            for th in [0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6]:
+                args.reg = reg
+                args.layers = l
+                args.epochs=200
+                args.threshold = th
+                results.append((th,train('wrn%d_C%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups), wrn)))
+    print(results)

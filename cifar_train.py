@@ -1,6 +1,7 @@
+import os
 import torchvision.datasets as dsets
 import torchvision.transforms as transforms
-from torch.optim.lr_scheduler import MultiStepLR
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from gcp import *
 from tqdm import tqdm
 from model import *
@@ -12,16 +13,32 @@ warnings.warn = warn
 
 parser = argparse.ArgumentParser(description='CIFAR-10 Retraining')
 parser.add_argument('--save_dir', type=str, default='./cifarmodel/', help='Folder to save checkpoints and log.')
-parser.add_argument('-l', '--layers', default=20, type=int, metavar='N', help='number of ResNet layers (default: 20)')
+parser.add_argument('-a', '--arch', default='resnet', type=str, metavar='N', help='network architecture (default: resnet)')
+parser.add_argument('-l', '--layers', default=-1, type=int, metavar='N', help='number of ResNet layers (default: 20)')
+parser.add_argument('-d', '--device', default='0', type=str, metavar='N', help='main device (default: 0)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N', help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=164, type=int, metavar='N', help='number of total epochs to run')
 parser.add_argument('-b', '--batch-size', default=128, type=int, metavar='N', help='mini-batch size (default: 256)')
-parser.add_argument('--lr', '--learning-rate', default=0.1, type=float, metavar='LR', help='initial learning rate')
+parser.add_argument('--lr', '--learning-rate', default=0.05, type=float, metavar='LR', help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
-parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
-parser.add_argument('--reg', default=-1, type=float, metavar='R', help='Group lasso hyperparameter (default: auto)')
+parser.add_argument('--weight-decay', '--wd', default=1e-3, type=float, metavar='W', help='weight decay (default: 1e-4)')
+parser.add_argument('-c', '--comp', default=0.25, type=float, metavar='N', help='remaining channels (%)')
+parser.add_argument('-g', '--groups', default=8, type=int, metavar='N', help='number of groups (default: 4)')
+parser.add_argument('-r', '--reg', type=float, metavar='R', help='Group lasso hyperparameter (default: auto)')
 
 args = parser.parse_args()
+os.environ["CUDA_VISIBLE_DEVICES"]=args.device
+
+def warmup(optimizer, lr, epoch):
+    if epoch < 2:
+        lr = lr/4
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
+    if epoch == 2:
+        lr = lr
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
 
 def get_lr(optimizer):
     return [param_group['lr'] for param_group in optimizer.param_groups]
@@ -30,18 +47,7 @@ device = torch.device("cuda")
 
 def train(filename, network):
     reg = args.reg
-    if reg==-1:
-        if args.layers == 20:
-            reg = 5e-5
-        elif args.layers == 32:
-            reg = 3e-5
-        elif args.layers == 56:
-            reg = 2e-5
-        elif args.layers == 110:
-            reg = 1e-5
-        else:
-            print("Set group lasso hyperparameter manually")
-            return
+    
 
     train_dataset = dsets.CIFAR10(root='./dataset',
                                   train=True,
@@ -70,35 +76,34 @@ def train(filename, network):
     torch.backends.cudnn.benchmark=True
     cnn, netname = network(args.layers)
     config = netname
-    try:
-        cnn.load_state_dict(torch.load(args.save_dir+'/'+netname+'.pkl')[0])
-    except:
-        for m in cnn.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out')
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                nn.init.constant_(m.bias, 0)
+    if 'resnet' in filename:
+        loadpath = args.save_dir+'/resnet%d_%s.pkl'%(args.layers, args.device)
+    elif 'wrn' in filename:
+        loadpath = args.save_dir+'/wrn%d_%s.pkl'%(args.layers, args.device)
+    print(loadpath)
+    cnn.load_state_dict(torch.load(loadpath)[0])
 
-    
     criterion = nn.CrossEntropyLoss()
     bestacc=0
-    optimizer = SGD_GL(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    scheduler = MultiStepLR(optimizer, [args.epochs//2,args.epochs*3//4], 0.1)
+    
+    if 'resnet' in filename:
+        optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+    elif 'wrn' in filename:
+        optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay, nesterov=True)
 
+    scheduler = CosineAnnealingLR(optimizer, args.epochs)
+    pruner = GCP(cnn, args.comp, 0, args.groups)
+    pruner.initialize(False)
     bar = tqdm(total=len(train_loader) * args.epochs)
     for epoch in range(args.epochs):
         cnn.train()
         for step, (images, labels) in enumerate(train_loader):
+            optimizer.zero_grad()
             gpuimg = images.to(device)
             labels = labels.to(device)
 
             outputs = cnn(gpuimg)
-            loss = criterion(outputs, labels) + optimizer.reg(reg, 5e-5)
-
-            optimizer.zero_grad()
+            loss = criterion(outputs, labels) + prune_reg(cnn, reg)
             loss.backward()
             optimizer.step()
             bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f" % (get_lr(optimizer)[0], loss.item(), bestacc))
@@ -126,8 +131,18 @@ def train(filename, network):
     bar.close()
     return bestacc
 
-def network(layers):
+def resnet(layers):
     return CifarResNet(ResNetBasicblock, layers, 10).to(device), "resnet"+str(layers)
 
+def wrn(layers):
+    return Wide_ResNet(layers, 8, 10).to(device), "wrn"+str(layers)
+
+
 if __name__ == '__main__':
-    train('resnet%dR.pkl'%(args.layers), network)
+    results = []
+    if args.arch == 'resnet':
+        results.append(train('resnet%d_R%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups), resnet))
+        
+    elif args.arch == 'wrn':
+        results.append(train('wrn%d_R%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups), wrn))
+        
