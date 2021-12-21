@@ -29,70 +29,39 @@ python cifar_pretrain.py -l 110 [--save-dir ./cifarmodel] [--workers 4] [--epoch
 
 ```
 # retrain ResNet20
-python cifar_train.py -l 20 [--reg 5e-5] [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+python cifar_train.py -l 20 -g 8 --reg 5e-5 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 
 # retrain ResNet32
-python cifar_train.py -l 32 [--reg 3e-5] [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+python cifar_train.py -l 32 -g 8 --reg 3e-5 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 
 # retrain ResNet56
-python cifar_train.py -l 56 [--reg 2e-5] [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+python cifar_train.py -l 56 -g 8 --reg 2e-5 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 
 # retrain ResNet110
-python cifar_train.py -l 110 [--reg 1e-5] [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
+python cifar_train.py -l 110 -g 8 --reg 1e-5 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 ```
 
 **Pruning+finetuning**
 
 ```
-# prune 60% channels in ResNet20 with 16 groups
-python cifar_prune.py -l 20 -g 16 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
+# prune ResNet20 with 8 maximum groups and delta=0.3
+python cifar_prune.py -l 20 -g 8 -t 0.3 --reg 5e-5 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 
-# prune 70% channels in ResNet20 with 16 groups
-python cifar_prune.py -l 20 -g 16 -c 0.3 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
+# prune ResNet20 with 8 maximum groups and delta=0.4
+python cifar_prune.py -l 20 -g 8  -t 0.4 --reg 5e-5 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 
-# prune 60% channels in ResNet20 with 4 groups
-python cifar_prune.py -l 20 -g 4 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
+# prune ResNet20 with 4 maximum groups and delta=0.3
+python cifar_prune.py -l 20 -g 4 -t 0.3 --reg 5e-5 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 
-# prune 60% channels in ResNet32 with 16 groups
-python cifar_prune.py -l 32 -g 16 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
+# prune ResNet32 with 8 maximum groups and delta=0.3
+python cifar_prune.py -l 32 -g 8 -t 0.3 --reg 3e-5 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 
-# prune 60% channels in ResNet56 with 16 groups
-python cifar_prune.py -l 56 -g 16 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
+# prune ResNet56 with 8 maximum groups and delta=0.3
+python cifar_prune.py -l 56 -g 8 -t 0.3 --reg 2e-5  [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 
-# prune 60% channels in ResNet110 with 16 groups
-python cifar_prune.py -l 110 -g 16 -c 0.4 [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
+# prune ResNet110 with 8 maximum groups and delta=0.3
+python cifar_prune.py -l 110 -g 8 -t 0.3 --reg 1e-5  [--save-dir ./cifarmodel] [--workers 4] [--epochs 164] [--batch-size 128] [--lr 0.05] [--momentum 0.9] [--wd 1e-3]
 ```
 
 
-## Usage of ImageNet 
-
-Import gcp.py and replace the SGD optimizer in your training code.
-
-```
-import gcp
-
-...
-
-# SGD optimizier
-optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-# SGD with group lasso optimizier
-optimizer = SGD_GL(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-# SGD + GCP
-optimizer = SGD_GCP(cnn.parameters(), lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay,
-                        ratio=args.comp, numgroup=args.groups)
-
-...
-
-# In training with regularization, add a group lasso term to loss
-loss = criterion(outputs, labels) + optimizer.reg(reg, 5e-5)
-
-...
-
-```
-
-## Hyperparameters for Imagenet
-
-- ResNet18: group=4, α=5e-5, β=5e-5
-- ResNet50: group=4, α=3e-5, β=5e-5
-- MobileNetV2: group=4, α=5e-5, β=5e-5
 
