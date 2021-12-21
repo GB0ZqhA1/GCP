@@ -168,19 +168,8 @@ def wrn(layers):
 if __name__ == '__main__':
     results = []
     if args.arch == 'resnet':
-        for l, reg in [(20, 5e-5),(32, 3e-5),(56, 2e-5),(110, 1e-5)]:
-            for th in [0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6]:
-                args.reg = reg
-                args.layers = l
-                args.threshold = th
-                results.append((th,train('resnet%d_C%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups), resnet)))
+        results.append((th,train('resnet%d_C%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups), resnet)))
 
     elif args.arch == 'wrn':
-        for l, reg in [(16, 1e-5),(28, 5e-6)]:
-            for th in [0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6]:
-                args.reg = reg
-                args.layers = l
-                args.epochs=200
-                args.threshold = th
-                results.append((th,train('wrn%d_C%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups), wrn)))
-    print(results)
+        results.append((th,train('wrn%d_C%s_%.5f_%dx.pkl'%(args.layers, args.device, args.reg, args.groups), wrn)))
+    
