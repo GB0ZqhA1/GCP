@@ -4,6 +4,6 @@
 (2) execute "model_inference.py"
 
 ```
-python model_inference.py -a resnet18 -m resnet18_0.25x4.pkl
+python model_inference.py -a resnet18 -m [checkpoint file] -g [group file] -i [ind file]
 ```
 
