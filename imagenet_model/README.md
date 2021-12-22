@@ -12,4 +12,6 @@ Accelerated models for ImageNet inference compiled by Pytorch JIT for CUDA.
 **Usage**
 ```
 model = torch.jit.load('optimized_pruned_resnet18.pt')
+images = torch.randn(batch_size,3,224,224).cuda()
+output = model(images)
 ```
