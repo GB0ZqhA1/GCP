@@ -1,6 +1,6 @@
-# Accelerated models
+# Accelerated models for ImageNet inference
 
-Accelerated models compiled by Pytorch JIT for CUDA.
+Accelerated models for ImageNet inference compiled by Pytorch JIT for CUDA.
 
 ## Requirements
 - Python 3.6
