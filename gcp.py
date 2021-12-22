@@ -21,6 +21,10 @@ class Hook():
     
     def hook_fn(self, module, input, output):
         self.input_size = 1
+        self.flops = 1
+        for s in module.weight.size():
+            self.flops*=s
+        self.flops*=input[0].size(2)*input[0].size(3)
         for i in input[0].size():
             self.input_size*=i
     
@@ -64,8 +68,14 @@ class GCP:
         print('Group Settings')
         for b, h in zip(self.blocks, self.hooks):
             b[-1].numgroup = max(1, numgroup * min_input // h[-1].input_size)
+            b[-1].flops = h[-1].flops
+            while (b[-1].size(0)%b[-1].numgroup!=0) or (b[-1].size(1)%b[-1].numgroup!=0):
+                b[-1].numgroup-=1
             for l, i in zip(b[:-1], h[:-1]):
                 l.numgroup = max(2, numgroup * min_input // i.input_size)
+                l.flops = i.flops
+                while (l.size(0)%l.numgroup!=0) or (l.size(1)%l.numgroup!=0):
+                    l.numgroup-=1
             print(*[l.numgroup for l in b])
 
     def alt_opt(self, chnorm, neginds, numgroup, comp_rate):
