@@ -111,9 +111,8 @@ def train(filename, network):
             rp += r
             tp += t
             if hasattr(param, "comp_rate"):
-                o,i,k,_ = param.size()
-                comps.append(i/o*k*k*param.comp_rate)
-                total.append(i/o*k*k)
+                comps.append(param.flops*param.comp_rate)
+                total.append(param.flops)
     flop_rate = sum(comps)/sum(total)*100
     print("total parameters : %d/%d (%f)" % (tp - rp, tp, (tp - rp) / tp))
 
