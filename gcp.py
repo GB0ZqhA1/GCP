@@ -3,6 +3,7 @@ import math, random
 from tqdm import tqdm
 from model import *
 from torchvision.models.resnet import BasicBlock, Bottleneck
+from torchvision.models.mobilenetv2 import InvertedResidual
 
 def prune_reg(model, decay):
     reg = 0.0
