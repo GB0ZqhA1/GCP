@@ -115,6 +115,7 @@ def train(filename, network):
                 total.append(param.flops)
     flop_rate = sum(comps)/sum(total)*100
     print("total parameters : %d/%d (%f)" % (tp - rp, tp, (tp - rp) / tp))
+    print("pruned FLOPS : %f" % (flop_rate,))
 
     bar = tqdm(total=len(train_loader) * args.epochs)
     for epoch in range(args.epochs):
