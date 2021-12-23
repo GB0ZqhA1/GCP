@@ -24,7 +24,7 @@ class Hook():
         self.flops = 1
         for s in module.weight.size():
             self.flops*=s
-        self.flops*=input[0].size(2)*input[0].size(3)
+        self.flops*=output.size(2)*output[0].size(3)
         for i in input[0].size():
             self.input_size*=i
     
