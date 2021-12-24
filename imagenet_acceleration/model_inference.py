@@ -73,9 +73,11 @@ def main_worker(args):
     org_model.to(loc)
     if loadname is None:
         model = org_model
+        pruner = GCP(model, 0, 0, 8)
     else:
         model = models.__dict__[args.arch]()
         model.to(loc)
+        pruner = GCP(model, 0, 0, 8)
         if os.path.isfile(loadname):
             print("=> loading checkpoint '{}'".format(loadname))
             checkpoint = torch.load(loadname, map_location=loc)
@@ -92,7 +94,6 @@ def main_worker(args):
 
     groups = torch.load(args.group, map_location=torch.device(loc))
     inds = torch.load(args.ind, map_location=torch.device(loc))
-    pruner = GCP(model, 0, 0, 8)
     set_groups(model, groups, inds)
     if args.arch == "resnet18":
         inf_model = inf_resnet18().to(loc)

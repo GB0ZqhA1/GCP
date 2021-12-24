@@ -3,6 +3,7 @@ import math, random
 from tqdm import tqdm
 from model import *
 from torchvision.models.resnet import BasicBlock, Bottleneck
+from torchvision.models.mobilenetv2 import InvertedResidual
 
 def prune_reg(model, decay):
     reg = 0.0
@@ -21,6 +22,10 @@ class Hook():
     
     def hook_fn(self, module, input, output):
         self.input_size = 1
+        self.flops = 1
+        for s in module.weight.size():
+            self.flops*=s
+        self.flops*=output.size(2)*output.size(3)
         for i in input[0].size():
             self.input_size*=i
     
@@ -51,9 +56,16 @@ class GCP:
             elif isinstance(m, Bottleneck):
                 self.blocks.append([m.conv3.weight,m.conv2.weight,m.conv1.weight])
                 self.hooks.append([Hook(m.conv3), Hook(m.conv2), Hook(m.conv1)])
+            elif isinstance(m, InvertedResidual) and len(m.conv)==4:
+                conv1 = m.conv[0][0]
+                conv2 = m.conv[2]
+                self.blocks.append([conv2.weight, conv1.weight])
+                self.hooks.append([Hook(conv2), Hook(conv1)])
         
-        
-        network(torch.randn(1,3,224,224).to(next(network.parameters()).device))
+        network.eval()
+        with torch.no_grad():
+            network(torch.randn(1,3,224,224).to(next(network.parameters()).device))
+        network.train()
         
         input_sizes=[]
         for h in self.hooks:
@@ -61,11 +73,17 @@ class GCP:
                 input_sizes.append(i.input_size)
                 i.close()
         min_input = min(input_sizes)
-        print('Group Settings')
+        print("Group Settings")
         for b, h in zip(self.blocks, self.hooks):
             b[-1].numgroup = max(1, numgroup * min_input // h[-1].input_size)
+            b[-1].flops = h[-1].flops
+            while (b[-1].size(0)%b[-1].numgroup!=0) or (b[-1].size(1)%b[-1].numgroup!=0):
+                b[-1].numgroup-=1
             for l, i in zip(b[:-1], h[:-1]):
                 l.numgroup = max(2, numgroup * min_input // i.input_size)
+                l.flops = i.flops
+                while (l.size(0)%l.numgroup!=0) or (l.size(1)%l.numgroup!=0):
+                    l.numgroup-=1
             print(*[l.numgroup for l in b])
 
     def alt_opt(self, chnorm, neginds, numgroup, comp_rate):
